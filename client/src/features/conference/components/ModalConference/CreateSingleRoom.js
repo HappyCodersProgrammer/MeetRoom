@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { v1 as uuid } from "uuid";
-import useRoom from '../../hooks/useRoom';
+import useRoom from '../../../../hooks/useRoom';
 import { FiPlus } from 'react-icons/fi';
 
 const CreateSingleRoom = () => {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import UserRow from "./UserRow";
+import UserRow from "./components/UserRow";
 
 const AllUser = () => {
 	const [users, setUsers] = useState([]);

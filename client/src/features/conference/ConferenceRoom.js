@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { FiMenu } from 'react-icons/fi';
-import logo from '../assets/images/logo.png';
-import LeftNavbar from '../components/LeftNavbar/LeftNavbar';
+import logo from '../../assets/images/logo.png';
+import LeftNavbar from '../../components/LeftNavbar/LeftNavbar';
 
 const ConferenceRoom = () => {
   const location = useLocation();

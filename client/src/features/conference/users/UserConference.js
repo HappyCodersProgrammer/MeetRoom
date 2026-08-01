@@ -1,6 +1,6 @@
 import React from "react";
-import Participant from "../../components/Participant/Participant";
-import Users from "../../components/Users/Users";
+import Participant from "../../../components/Participant/Participant";
+import Users from "../../../components/Users/Users";
 
 const UserConference = () => {
 	return (

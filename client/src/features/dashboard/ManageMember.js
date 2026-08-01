@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import MemberRow from "./MemberRow";
+import MemberRow from "./components/MemberRow";
 
 const ManageMember = () => {
 	const [members, setMembers] = useState([]);

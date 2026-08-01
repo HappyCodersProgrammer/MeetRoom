@@ -1,8 +1,8 @@
 import { signOut } from 'firebase/auth';
 import React from 'react';
 import { Link, Outlet } from 'react-router-dom';
-import logo from '../assets/images/logo.png';
-import auth from '../firebase.init';
+import logo from '../../assets/images/logo.png';
+import auth from '../../firebase.init';
 
 const Dashboard = () => {
     const logout = () => {

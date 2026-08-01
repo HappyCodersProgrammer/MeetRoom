@@ -12,9 +12,9 @@ import {
 	FiCircle, FiSquare, FiX
 } from "react-icons/fi";
 import ScrollToBottom from "react-scroll-to-bottom";
-import auth from "../../firebase.init";
-import SOCKET_URL from "../../config/socket";
-import ICE_SERVERS from "../../config/iceServers";
+import auth from "../../../../firebase.init";
+import SOCKET_URL from "../../../../config/socket";
+import ICE_SERVERS from "../../../../config/iceServers";
 
 function Video({ peer }) {
 	const ref = useRef();

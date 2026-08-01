@@ -9,10 +9,10 @@ import {
   FiMessageSquare, FiMessageCircle, FiCopy, FiPhoneOff,
   FiCircle, FiSquare, FiX
 } from "react-icons/fi";
-import SignleChat from "../../components/Chat/SignleChat";
-import auth from "../../firebase.init";
-import SOCKET_URL from "../../config/socket";
-import ICE_SERVERS from "../../config/iceServers";
+import SignleChat from "../../../../components/Chat/SignleChat";
+import auth from "../../../../firebase.init";
+import SOCKET_URL from "../../../../config/socket";
+import ICE_SERVERS from "../../../../config/iceServers";
 
 const SingleRoom = () => {
   const [user] = useAuthState(auth);

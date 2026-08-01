@@ -2,10 +2,10 @@ import React, { useEffect, useState } from "react";
 import Clock from "react-clock";
 import "react-clock/dist/Clock.css";
 import { FiVideo, FiUsers, FiMessageSquare, FiRadio } from "react-icons/fi";
-import CreateSingleRoom from "../../ConferenceRoom/ModalConference/CreateSingleRoom";
-import CreateGroupRoom from "../../ConferenceRoom/ModalConference/CreateGroupRoom";
-import CreateBroadcastRoom from "../../ConferenceRoom/ModalConference/CreateBroadcastRoom";
-import CreateChatRoom from "../../ConferenceRoom/ModalConference/CreateChatRoom";
+import CreateSingleRoom from "../../features/conference/components/ModalConference/CreateSingleRoom";
+import CreateGroupRoom from "../../features/conference/components/ModalConference/CreateGroupRoom";
+import CreateBroadcastRoom from "../../features/conference/components/ModalConference/CreateBroadcastRoom";
+import CreateChatRoom from "../../features/conference/components/ModalConference/CreateChatRoom";
 
 const RoomHome = () => {
   const [value, setValue] = useState(new Date());

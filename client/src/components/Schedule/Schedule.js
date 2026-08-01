@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import user from "../../assets/images/user.png";
 import useSchedules from "../../hooks/useSchedules";
-import Loading from "../../pages/Register/Loading";
+import Loading from "../../../features/auth/pages/Loading";
 
 const Schedule = () => {
 	const [copySuccess, setCopySuccess] = useState("");

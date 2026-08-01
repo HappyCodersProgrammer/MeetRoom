@@ -6,8 +6,8 @@ import {
   FiRadio, FiUsers, FiCopy, FiMaximize, FiMonitor
 } from "react-icons/fi";
 import { toast } from "react-toastify";
-import SOCKET_URL from "../../config/socket";
-import ICE_SERVERS from "../../config/iceServers";
+import SOCKET_URL from "../../../../config/socket";
+import ICE_SERVERS from "../../../../config/iceServers";
 
 const LiveBroadCast = () => {
   const navigate = useNavigate();

@@ -1,5 +1,5 @@
 import React from "react";
-import RoomHome from "../../components/RoomHome/RoomHome";
+import RoomHome from "../../../components/RoomHome/RoomHome";
 
 const HomeConference = () => {
 	return (

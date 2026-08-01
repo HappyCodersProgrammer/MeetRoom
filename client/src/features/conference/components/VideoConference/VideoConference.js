@@ -1,9 +1,9 @@
 import React from "react";
-import ChatTab from "../../components/ChatTab/ChatTab";
-import Schedule from "../../components/Schedule/Schedule";
-import ParticipantSlide from "../../components/Slider/ParticipantSlide";
-import GroupVideo from "../../components/Video/GroupVideo";
-import SingleVideo from "../../components/Video/SingleVideo";
+import ChatTab from "../../../../components/ChatTab/ChatTab";
+import Schedule from "../../../../components/Schedule/Schedule";
+import ParticipantSlide from "../../../../components/Slider/ParticipantSlide";
+import GroupVideo from "../../../../components/Video/GroupVideo";
+import SingleVideo from "../../../../components/Video/SingleVideo";
 
 const VideoConference = () => {
 	return (
