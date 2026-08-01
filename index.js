@@ -12,6 +12,7 @@ const bodyParser = require("body-parser");
 
 app.use(cors());
 app.use(express.static("public"));
+app.use(express.static(path.join(__dirname, "client", "build")));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -33,6 +34,9 @@ const chatRooms = {};
 const socketToRoom = {};
 // Map socket id -> room id (for group video rooms)
 const socketToGroup = {};
+// Broadcast rooms (live broadcast)
+const broadcastRooms = {};
+
 
 io.on("connection", (socket) => {
 	const socketId = socket.id;
@@ -184,30 +188,37 @@ io.on("connection", (socket) => {
 	});
 
 	/* =========== BROADCAST ========== */
-	const broadcastRooms = {}; // roomID -> { broadcaster, viewers: [] }
-
 	socket.on("join broadcast", ({ roomID, userName, userImg }) => {
 		socket.join(roomID);
+
 		if (!broadcastRooms[roomID]) {
-			broadcastRooms[roomID] = { broadcaster: socketId, viewers: [] };
+			broadcastRooms[roomID] = { broadcaster: socket.id, viewers: [] };
 			socket.emit("broadcaster status", true);
+			console.log(`[BROADCAST] Broadcaster started room: ${roomID}`);
 		} else {
-			broadcastRooms[roomID].viewers.push({ socketId, userName, userImg });
+			broadcastRooms[roomID].viewers.push({ socketId: socket.id, userName, userImg });
 			socket.emit("broadcaster status", false);
-			socket.to(broadcastRooms[roomID].broadcaster).emit("new viewer", {
-				viewerId: socketId,
+			io.to(broadcastRooms[roomID].broadcaster).emit("new viewer", {
+				viewerId: socket.id,
 				userName,
 				userImg,
 			});
+			console.log(`[BROADCAST] Viewer joined room: ${roomID}`);
 		}
 	});
 
 	socket.on("broadcaster signal", ({ viewerId, signal }) => {
-		io.to(viewerId).emit("broadcaster signal", { signal, broadcasterId: socketId });
+		io.to(viewerId).emit("broadcaster signal", {
+			signal,
+			broadcasterId: socket.id,
+		});
 	});
 
 	socket.on("viewer signal", ({ broadcasterId, signal }) => {
-		io.to(broadcasterId).emit("viewer signal", { signal, viewerId: socketId });
+		io.to(broadcasterId).emit("viewer signal", {
+			signal,
+			viewerId: socket.id,
+		});
 	});
 
 	/* =========== DISCONNECT CLEANUP ========== */
@@ -254,21 +265,28 @@ io.on("connection", (socket) => {
 		delete socketToRoom[socketId];
 		delete socketToGroup[socketId];
 
+		// Clean up broadcast rooms
 		for (const roomID in broadcastRooms) {
 			const room = broadcastRooms[roomID];
 			if (room.broadcaster === socketId) {
-				socket.to(roomID).emit("broadcast ended");
+				io.to(roomID).emit("broadcast ended");
 				delete broadcastRooms[roomID];
+				console.log(`[BROADCAST] Broadcaster left, ended room: ${roomID}`);
 			} else {
 				room.viewers = room.viewers.filter((v) => v.socketId !== socketId);
 			}
 		}
-
 	});
 });
 
 /* ====== SERVER STARTUP ====== */
 const PORT = process.env.PORT || 5000;
+const buildPath = path.join(__dirname, "client", "build");
+
+app.get("*", (req, res) => {
+	res.sendFile(path.join(buildPath, "index.html"));
+});
+
 server.listen(PORT, () => {
 	console.log(`[SERVER] MeetRoom server running on port ${PORT}`);
 });

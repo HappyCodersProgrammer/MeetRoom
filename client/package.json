@@ -65,6 +65,7 @@
 		]
 	},
 	"devDependencies": {
+		"@babel/plugin-proposal-private-property-in-object": "^7.20.0",
 		"@iconify/react": "^4.1.0",
 		"babel-eslint": "^10.1.0",
 		"eslint": "^8.2.0",

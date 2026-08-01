@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Color Code */
+/* ========== Color Code ========== */
 .bg-header {
 	background-color: #1d4354;
 }
@@ -43,42 +43,36 @@
 	background-color: #fe0000;
 }
 
-/* Scrool Bar Design */
-/* Scroll */
+/* ========== Scroll Bar Design ========== */
 ::-webkit-scrollbar {
 	width: 8px;
 	background-color: #f4f4f6;
 }
 
-/* Track */
 ::-webkit-scrollbar-track {
 	box-shadow: inset 0 0 5px transparent;
 	border-radius: 10px;
 	min-height: 100vh;
 }
 
-/* Handle */
 ::-webkit-scrollbar-thumb {
 	background: #c1c3c6;
 	border: 1px solid transparent;
 	height: 50px;
 }
 
-/*Chatroom Scrollbar Design */
-/* Scroll */
+/* ========== Chatroom Scrollbar ========== */
 .body::-webkit-scrollbar {
 	width: 6px;
 	background-color: rgba(63, 63, 63, 0);
 }
 
-/* Track */
 .body::-webkit-scrollbar-track {
 	box-shadow: inset 0 0 5px #12ad6a;
 	border-radius: 10px;
 	min-height: 100vh;
 }
 
-/* Handle */
 .body::-webkit-scrollbar-thumb {
 	background: #4ade80;
 	border: 1px solid #12ad6a;
@@ -86,37 +80,7 @@
 	height: 50px;
 }
 
-/* OverWriting CSS */
-.logo .btn-ghost:hover,
-.btn-ghost.btn-active {
-	--tw-border-opacity: 0;
-	background-color: transparent;
-	--tw-bg-opacity: 0.2;
-}
-
-/*Tab Scrollbar Design */
-/* Scroll */
-.tab-bar::-webkit-scrollbar {
-	width: 6px;
-	background-color: #24253fe5;
-}
-
-/* Track */
-.tab-bar::-webkit-scrollbar-track {
-	/* box-shadow: inset 0 0 5px #e4e7e5; */
-	border-radius: 10px;
-	min-height: 100vh;
-}
-
-/* Handle */
-.tab-bar::-webkit-scrollbar-thumb {
-	background: rgb(12, 12, 12);
-	border: 1px solid #1d1e36;
-	border-radius: 10px;
-	height: 50px;
-}
-
-/* OverWriting CSS */
+/* ========== OverWriting CSS ========== */
 .logo .btn-ghost:hover,
 .btn-ghost.btn-active {
 	--tw-border-opacity: 0;
@@ -127,14 +91,29 @@
 .menu :where(li:not(.menu-title):not(:empty))> :where(*:not(ul):focus),
 .menu :where(li:not(.menu-title):not(:empty))> :where(*:not(ul):hover) {
 	background-color: transparent !important;
-	/* --tw-bg-opacity: 0.1; */
 }
 
-/* override other styles to make responsive */
+/* ========== Tab Scrollbar ========== */
+.tab-bar::-webkit-scrollbar {
+	width: 6px;
+	background-color: #24253fe5;
+}
 
+.tab-bar::-webkit-scrollbar-track {
+	border-radius: 10px;
+	min-height: 100vh;
+}
+
+.tab-bar::-webkit-scrollbar-thumb {
+	background: rgb(12, 12, 12);
+	border: 1px solid #1d1e36;
+	border-radius: 10px;
+	height: 50px;
+}
+
+/* ========== Responsive Overrides ========== */
 .chat-h {
 	max-height: 70vh;
-	height: 100vh;
 }
 
 .oneVideo {
@@ -143,12 +122,10 @@
 	border-radius: 10px;
 }
 
-/* Video participant slider scrollbar */
 .participantSwiper .swiper-scrollbar {
 	opacity: 0;
 }
 
-/* Clean scrollbar for chat areas */
 .chat-scroll::-webkit-scrollbar {
 	width: 6px;
 }
