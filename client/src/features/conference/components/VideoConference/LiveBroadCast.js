@@ -32,9 +32,8 @@ const LiveBroadCast = () => {
     return () => {
       if (socketRef.current) socketRef.current.disconnect();
       if (userStream.current) userStream.current.getTracks().forEach((t) => t.stop());
-      const peersToClose = peerRefs.current;
-      peersToClose.forEach((p) => {
-        try { p.peer?.close(); } catch (_) {}
+      peerRefs.current.forEach((p) => {
+        try { p.peer?.close(); } catch (_) { }
       });
       peerRefs.current = [];
     };
@@ -60,7 +59,8 @@ const LiveBroadCast = () => {
           viewerId,
           signal: { type: "sdp", sdp: peer.localDescription },
         });
-      });
+      })
+      .catch((err) => console.error("[BROADCASTER] Offer error:", err));
 
     return peer;
   };
@@ -74,23 +74,29 @@ const LiveBroadCast = () => {
 
       socketRef.current.emit("join broadcast", { roomID, userName: "Broadcaster", userImg: "" });
 
+      // Register listeners ONCE here, nowhere else
       socketRef.current.on("new viewer", ({ viewerId }) => {
+        console.log("[BROADCASTER] New viewer:", viewerId);
         const peer = createPeer(viewerId, stream);
         peerRefs.current.push({ viewerId, peer });
         setViewerCount((c) => c + 1);
       });
 
       socketRef.current.on("viewer signal", ({ signal, viewerId }) => {
+        console.log("[BROADCASTER] Viewer signal:", signal.type, "from", viewerId);
         const item = peerRefs.current.find((p) => p.viewerId === viewerId);
         if (!item) return;
-        if (signal.type === "sdp" && signal.sdp.type === "answer") {
-          item.peer.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        if (signal.type === "sdp" && signal.sdp?.type === "answer") {
+          item.peer.setRemoteDescription(new RTCSessionDescription(signal.sdp))
+            .catch((err) => console.error("[BROADCASTER] Answer error:", err));
         } else if (signal.type === "ice" && signal.candidate) {
-          item.peer.addIceCandidate(new RTCIceCandidate(signal.candidate));
+          item.peer.addIceCandidate(new RTCIceCandidate(signal.candidate))
+            .catch((err) => console.error("[BROADCASTER] ICE error:", err));
         }
       });
     } catch (err) {
       toast.error("Failed to start broadcast.");
+      console.error(err);
     }
   };
 
@@ -129,9 +135,9 @@ const LiveBroadCast = () => {
     const el = videoContainerRef.current;
     if (!el) return;
     if (!document.fullscreenElement) {
-      el.requestFullscreen?.().catch(() => {});
+      el.requestFullscreen?.().catch(() => { });
     } else {
-      document.exitFullscreen?.().catch(() => {});
+      document.exitFullscreen?.().catch(() => { });
     }
   };
 

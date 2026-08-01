@@ -26,6 +26,7 @@ import RequireAuth from "./features/auth/pages/RequireAuth";
 import SignIn from "./features/auth/pages/SignIn";
 import SignUp from "./features/auth/pages/SignUp";
 import SupportPage from "./pages/SupportPage/SupportPage";
+import BroadcastViewer from "./features/conference/components/VideoConference/BroadcastViewer";
 
 function App() {
 	const [user] = useAuthState(auth);
@@ -42,6 +43,7 @@ function App() {
 				<Route path="/about" element={<About />}></Route>
 				<Route path="/contact" element={<Contact />}></Route>
 				<Route path="/schedule" element={<MeetingSchedule />}></Route>
+				<Route path="/broadcast-view/:broadcastID" element={<BroadcastViewer />} />
 				<Route
 					path="/dashboard"
 					element={
