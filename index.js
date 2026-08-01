@@ -10,10 +10,11 @@ const socket = require("socket.io");
 const path = require("path");
 const bodyParser = require("body-parser");
 
-app.use(cors());
-app.use(express.static("public"));
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+	app.use(cors());
+	app.use(express.static("public"));
+	app.use(express.static(path.join(__dirname, "client", "build")));
+	app.use(bodyParser.json());
+	app.use(bodyParser.urlencoded({ extended: true }));
 
 const io = socket(server, {
 	cors: {
@@ -269,6 +270,12 @@ io.on("connection", (socket) => {
 
 /* ====== SERVER STARTUP ====== */
 const PORT = process.env.PORT || 5000;
+const buildPath = path.join(__dirname, "client", "build");
+
+app.get("*", (req, res) => {
+	res.sendFile(path.join(buildPath, "index.html"));
+});
+
 server.listen(PORT, () => {
 	console.log(`[SERVER] MeetRoom server running on port ${PORT}`);
 });
