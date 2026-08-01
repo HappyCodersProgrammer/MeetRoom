@@ -1,116 +1,105 @@
-import React from 'react';
-import { useEffect, useState } from 'react';
-import Clock from 'react-clock';
-import { Link } from 'react-router-dom';
-import CreateSingleRoom from '../../ConferenceRoom/ModalConference/CreateSingleRoom';
-import CreateGroupRoom from '../../ConferenceRoom/ModalConference/CreateGroupRoom';
-import CreateChatRoom from '../../ConferenceRoom/ModalConference/CreateChatRoom';
-import CreateBroadcastRoom from '../../ConferenceRoom/ModalConference/CreateBroadcastRoom';
-import WatchBg from '../../assets/images/watchbg.jpg';
-import 'react-clock/dist/Clock.css';
-import 'react-calendar/dist/Calendar.css';
+import React, { useEffect, useState } from "react";
+import Clock from "react-clock";
+import "react-clock/dist/Clock.css";
+import { FiVideo, FiUsers, FiMessageSquare, FiRadio } from "react-icons/fi";
+import CreateSingleRoom from "../../features/conference/components/ModalConference/CreateSingleRoom";
+import CreateGroupRoom from "../../features/conference/components/ModalConference/CreateGroupRoom";
+import CreateBroadcastRoom from "../../features/conference/components/ModalConference/CreateBroadcastRoom";
+import CreateChatRoom from "../../features/conference/components/ModalConference/CreateChatRoom";
 
 const RoomHome = () => {
-    const [value, setValue] = useState(new Date());
-    const current = new Date();
-    const dayName = current.toString().split(' ')[0];
-    const monthName = current.toString().split(' ')[1];
-    const date = `${dayName}, ${current.getDate()} ${monthName} ${current.getFullYear()}`;
+  const [value, setValue] = useState(new Date());
+  const current = new Date();
+  const dateStr = current.toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 
-    useEffect(() => {
-        const interval = setInterval(() => setValue(new Date()), 1000);
-        return () => {
-            clearInterval(interval);
-        };
-    }, []);
-    return (
+  useEffect(() => {
+    const interval = setInterval(() => setValue(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
-        <div className='w-full mx-auto cursor-pointer'>
-            <div className="flex flex-col lg:flex-row gap-2">
-                <div className="card w-12/12 lg:w-8/12 bg-base-100 shadow-xl h-full" style={{ backgroundImage: `url(${WatchBg})`, backgroundSize: 'cover' }}>
-                    <div className="card-body bg-clock text-gray-300">
-                        <div className="flex flex-col md:flex-row justify-center lg:justify-between mx-auto">
-                            <Clock value={value} />
-                            <h2 className="card-title text-md lg:text-4xl p-2">{date}</h2>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ======Single Video Calling===== */}
-                <div className="card w-12/12 lg:w-4/12 bg-primary text-primary-content">
-                    <div className="card-body">
-                        <div className="flex justify-start gap-1">
-                            <button><CreateSingleRoom /></button>
-                        </div>
-                        <h2 className="text-xl font-semibold">Single call</h2>
-                        <p className='text-sm'>Start Calling</p>
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex flex-col lg:flex-row gap-2 py-2">
-                {/* ======Group Video Calling===== */}
-                <div className="card w-12/12 lg:w-6/12 bg-fuchsia-800 text-primary-content ml-0">
-                    <div className="card-body">
-                        <div className="flex justify-start gap-1">
-                            <button><CreateGroupRoom /></button>
-                        </div>
-                        <h2 className="text-lg font-semibold">Group Call</h2>
-                        <p className='text-sm'>Start Group Calling</p>
-                    </div>
-                </div>
-
-                {/* ======Chatting Option===== */}
-                <div className="card w-12/12 lg:w-6/12 bg-pink-700 text-primary-content ml-0">
-                    <div className="card-body">
-                        <div className="flex justify-start gap-1">
-                            <button><CreateChatRoom /></button>
-                        </div>
-                        <Link to='/liveChat'><h2 className="text-lg font-semibold">Online Chat</h2></Link>
-                        <p className='text-sm'>Start Just Chatting</p>
-                    </div>
-                </div>
-
-                {/* ======Live BroadCast===== */}
-                <div className="card w-12/12 lg:w-6/12 bg-sky-600 text-primary-content ml-0">
-                    <div className="card-body">
-                        <div className="flex justify-start gap-1">
-                            <button><CreateBroadcastRoom /></button>
-                        </div>
-
-                        <h2 className="text-lg font-semibold">BroadCast</h2>
-                        <p className='text-sm'>Start Just BroadCast</p>
-                    </div>
-                </div>
-
-                {/* ======Schedule Option===== */}
-                <div className="card w-12/12 lg:w-6/12 bg-cyan-700 text-primary-content ml-0">
-                    <div className="card-body">
-                        <div className="card-actions justify-start">
-                            <Link to="/conference/schedule" className="text-lg font-semibold"><i className="fal fa-calendar-alt font-bold text-3xl bg-clock bg-transparent border border-gray-300  p-2"></i></Link>
-                        </div>
-                        <Link to="/conference/schedule" className="text-lg font-semibold">Schedule</Link>
-                        <p className='text-sm'>plan your meeting</p>
-
-                    </div>
-                </div>
-
-                {/* ======Share Screen===== */}
-                <div className="card w-12/12 lg:w-6/12 bg-violet-600	 text-primary-content ml-0">
-                    <div className="card-body">
-                        <div className="card-actions justify-start">
-                            <i className="fal fa-desktop font-bold text-3xl bg-clock bg-transparent border border-gray-300  p-2"></i>
-                        </div>
-                        <h2 className="text-lg font-semibold">Share Screen</h2>
-                        <p className='text-sm'>show your interface</p>
-
-                    </div>
-                </div>
-
-            </div>
+  return (
+    <div className="space-y-6">
+      {/* Top Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Clock Card */}
+        <div className="lg:col-span-2 bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-8 border border-slate-700 flex flex-col md:flex-row items-center justify-between shadow-xl">
+          <div>
+            <h2 className="text-4xl md:text-5xl font-bold text-slate-100 tracking-tight">
+              {value.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </h2>
+            <p className="text-slate-400 mt-2 text-lg">{dateStr}</p>
+          </div>
+          <div className="mt-6 md:mt-0 mr-4 scale-125 md:scale-150 origin-center">
+            <Clock value={value} renderNumbers size={140} className="custom-clock" />
+          </div>
         </div>
 
-    );
+        {/* Single Call */}
+        <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-3xl p-6 border border-emerald-500/30 shadow-xl text-white flex flex-col justify-between hover:shadow-2xl hover:scale-[1.02] transition-all duration-300">
+          <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center mb-4">
+            <FiVideo className="text-2xl" />
+          </div>
+          <div>
+            <h3 className="text-xl font-bold">One to One</h3>
+            <p className="text-emerald-100 text-sm mt-1">Start a private video call</p>
+            <div className="mt-4">
+              <CreateSingleRoom />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Group Call */}
+        <div className="bg-gradient-to-br from-violet-600 to-violet-800 rounded-3xl p-6 border border-violet-500/30 shadow-xl text-white flex flex-col justify-between hover:shadow-2xl hover:scale-[1.02] transition-all duration-300">
+          <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center mb-4">
+            <FiUsers className="text-2xl" />
+          </div>
+          <div>
+            <h3 className="text-xl font-bold">Group Call</h3>
+            <p className="text-violet-100 text-sm mt-1">Meet with multiple people</p>
+            <div className="mt-4">
+              <CreateGroupRoom />
+            </div>
+          </div>
+        </div>
+
+        {/* Live Broadcast */}
+        <div className="bg-gradient-to-br from-sky-600 to-sky-800 rounded-3xl p-6 border border-sky-500/30 shadow-xl text-white flex flex-col justify-between hover:shadow-2xl hover:scale-[1.02] transition-all duration-300">
+          <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center mb-4">
+            <FiRadio className="text-2xl" />
+          </div>
+          <div>
+            <h3 className="text-xl font-bold">Broadcast</h3>
+            <p className="text-sky-100 text-sm mt-1">Stream to your audience</p>
+            <div className="mt-4">
+              <CreateBroadcastRoom />
+            </div>
+          </div>
+        </div>
+
+        {/* Chat */}
+        <div className="bg-gradient-to-br from-pink-600 to-pink-800 rounded-3xl p-6 border border-pink-500/30 shadow-xl text-white flex flex-col justify-between hover:shadow-2xl hover:scale-[1.02] transition-all duration-300">
+          <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center mb-4">
+            <FiMessageSquare className="text-2xl" />
+          </div>
+          <div>
+            <h3 className="text-xl font-bold">Online Chat</h3>
+            <p className="text-pink-100 text-sm mt-1">Join a chat room</p>
+            <div className="mt-4 flex gap-2">
+              <CreateChatRoom />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default RoomHome;

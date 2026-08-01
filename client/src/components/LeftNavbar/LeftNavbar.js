@@ -1,32 +1,63 @@
-import React from 'react';
-import auth from '../../firebase.init';
-import { signOut } from 'firebase/auth';
-import { Link } from 'react-router-dom';
+import { signOut } from "firebase/auth";
+import React from "react";
+import { Link, useLocation } from "react-router-dom";
+import { FiHome, FiVideo, FiLogOut } from "react-icons/fi";
+import auth from "../../firebase.init";
+
+const navItems = [
+  { to: "/conference", icon: FiHome, label: "Home" },
+];
 
 const LeftNavbar = () => {
-    const logout = () => {
-        signOut(auth);
-      };
-    return (
-        <div className="drawer-side">
-            <label for="my-drawer-2" className="drawer-overlay"></label> 
-                <ul className="menu p-4 overflow-y-auto w-24 bg-black text-gray-200">
-                    <div className="side-logo text-center bg-green-500 py-4 mb-0 lg:mb-12 rounded-full">
-                       <Link to='/' onClick={logout}><i className="fas fa-video text-3x bg-white pr-2 pl-2 py-2 text-green-500 rounded-full"></i></Link>
-                    </div>
-                    <li><Link to="/conference"><i className="fal fa-home text-gray-200 text-lg lg:text-3xl hover:text-green-400 hover:translate-x-0.5 transition-transform active:text-green-500"></i></Link></li>
-                    <li><Link to="/conference/video"><i className="fal fa-video text-gray-200 text-lg lg:text-3xl hover:text-green-400 hover:translate-x-0.5 transition-transform"></i></Link></li>
-                    <li><Link to="/conference/users"><i className="fal fa-users text-gray-200 text-lg lg:text-3xl hover:text-green-400 hover:translate-x-0.5 transition-transform focus:text-green-500"></i></Link></li>
-                    <li><Link to="/conference/schedule"><i className="fas fa-calendar-alt text-gray-200 text-lg lg:text-3xl hover:text-green-400 hover:translate-x-0.5 transition-transform"></i></Link></li>
-                    <li><Link to="/conference/notifications"><i className="fal fa-bell text-gray-200 text-lg lg:text-3xl hover:text-green-400 hover:translate-x-0.5 transition-transform"></i></Link></li>
-                    <li><Link to="/conference/settings"><i className="fal fa-cog text-gray-200 text-lg lg:text-3xl hover:text-green-400 hover:translate-x-0.5 transition-transform"></i></Link></li>
-                    <div className="absolute left-1/3 bottom-2 cursor-pointer">
-                    <Link to='/' onClick={logout}><i className="fal fa-sign-out-alt text-lg lg:text-3xl text-red-500 hover:text-green-400 hover:translate-x-0.5 transition-transform"></i></Link>
-                
-                    </div>
-                </ul>
-        </div>
-    );
+  const location = useLocation();
+  const logout = () => signOut(auth);
+
+  return (
+    <div className="drawer-side z-999">
+      <label htmlFor="my-drawer-2" className="drawer-overlay bg-black/60"></label>
+      <div className="w-20 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-6 h-full">
+        {/* Logo */}
+        <Link to="/" className="mb-10">
+          <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <FiVideo className="text-white text-xl" />
+          </div>
+        </Link>
+
+        {/* Nav */}
+        <nav className="flex-1 flex flex-col gap-6 w-full px-2">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = location.pathname === item.to || location.pathname.startsWith(item.to + '/');
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`flex items-center justify-center w-full py-3 rounded-xl transition-all duration-200 group relative ${
+                  active ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                }`}
+              >
+                <Icon className="text-xl" />
+                {!active && (
+                  <span className="absolute left-14 bg-slate-800 text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-slate-700 pointer-events-none">
+                    {item.label}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Logout */}
+        <button
+          onClick={logout}
+          className="text-slate-400 hover:text-red-400 hover:bg-red-500/10 p-3 rounded-xl transition-all duration-200"
+          title="Logout"
+        >
+          <FiLogOut className="text-xl" />
+        </button>
+      </div>
+    </div>
+  );
 };
 
 export default LeftNavbar;
