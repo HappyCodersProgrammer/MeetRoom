@@ -1,584 +1,470 @@
 /* eslint-disable no-unused-vars */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import io from "socket.io-client";
+import {
+  FiMic, FiMicOff, FiVideo, FiVideoOff, FiMonitor,
+  FiMessageSquare, FiMessageCircle, FiCopy, FiPhoneOff,
+  FiCircle, FiSquare, FiX
+} from "react-icons/fi";
 import SignleChat from "../../components/Chat/SignleChat";
-import SingleVideo from "../../components/Video/SingleVideo";
 import auth from "../../firebase.init";
+import SOCKET_URL from "../../config/socket";
+import ICE_SERVERS from "../../config/iceServers";
 
 const SingleRoom = () => {
-	const [user] = useAuthState(auth);
-	const userImg =
-		user && user.photoURL
-			? user.photoURL
-			: `https://img.icons8.com/?size=512&id=108296&format=png`;
-	const userName = user?.displayName;
-const { roomID } = useParams();
-    // variables for different functionalities of video call
-    const containerVideo = useRef();
-    const userVideo = useRef();
-    const partnerVideo = useRef();
-    const peerRef = useRef();
-    const socketRef = useRef();
-    const usersID = useRef();
-    const yourNameRef = useRef();
-    const yourImageRef = useRef();
-    const userNameRef = useRef();
-    const userImageRef = useRef();
-    const userStream = useRef();
-    const senders = useRef([]);
-    const sendChannel = useRef();
-    const [text, setText] = useState('');
-    const [messages, setMessages] = useState([]);
-    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-    const [showChat, setShowChat] = useState(false);
-    const [iceServer, setIceServer] = useState([
-        { urls: 'stun:stun.relay.metered.ca:80' },
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:stun4.l.google.com:19302' },
-        { urls: 'stun:openrelay.metered.ca:80' },
-        {
-            urls: 'turn:a.relay.metered.ca:80',
-            username: 'bab9ca25580d0235617aea7e',
-            credential: 'NVk1oJx3ogplGTuj',
-        },
-        {
-            urls: 'turn:a.relay.metered.ca:80?transport=tcp',
-            username: 'bab9ca25580d0235617aea7e',
-            credential: 'NVk1oJx3ogplGTuj',
-        },
-        {
-            urls: 'turn:a.relay.metered.ca:443',
-            username: 'bab9ca25580d0235617aea7e',
-            credential: 'NVk1oJx3ogplGTuj',
-        },
-        {
-            urls: 'turn:a.relay.metered.ca:443?transport=tcp',
-            username: 'bab9ca25580d0235617aea7e',
-            credential: 'NVk1oJx3ogplGTuj',
-        },
-        {
-            urls: 'turn:openrelay.metered.ca:80',
-            username: 'openrelayproject',
-            credential: 'openrelayproject',
-        },
-        {
-            urls: 'turn:openrelay.metered.ca:443',
-            username: 'openrelayproject',
-            credential: 'openrelayproject',
-        },
-        {
-            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-            username: 'openrelayproject',
-            credential: 'openrelayproject',
-        },
-    ]);
-    // ======== END OF THE PEER TO PEER CONNECTION ===============
+  const [user] = useAuthState(auth);
+  const navigate = useNavigate();
+  const userImg = user?.photoURL || `https://img.icons8.com/?size=512&id=108296&format=png`;
+  const userName = user?.displayName || "Anonymous";
+  const { roomID } = useParams();
 
-    // handling the ice candidates
-    const handleICECandidateEvent = (e) => {
-        if (e.candidate) {
-            const payload = {
-                target: usersID.current,
-                candidate: e.candidate,
-            };
-            socketRef.current.emit('ice-candidate', payload);
-        }
+  const userVideo = useRef();
+  const partnerVideo = useRef();
+  const peerRef = useRef();
+  const socketRef = useRef();
+  const userStream = useRef();
+  const senders = useRef([]);
+  const sendChannel = useRef();
+  const usersID = useRef();
+
+  const [text, setText] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [copySuccess, setCopySuccess] = useState("");
+
+  const [isVideoEnabled, setIsVideoEnabled] = useState(true);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+  const [isRecording, setIsRecording] = useState(false);
+
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+  const animationRef = useRef(null);
+  const isScreenSharing = useRef(false);
+  const isRecordingRef = useRef(false);
+
+  // ================== WEBRTC =================
+  const handleICECandidateEvent = (e) => {
+    if (e.candidate && peerRef.current) {
+      socketRef.current.emit("ice-candidate", {
+        target: usersID.current,
+        candidate: e.candidate,
+      });
+    }
+  };
+
+  const handleTrackEvent = (e) => {
+    if (partnerVideo.current) partnerVideo.current.srcObject = e.streams[0];
+  };
+
+  const createPeer = useCallback((userID) => {
+    const peer = new RTCPeerConnection(ICE_SERVERS);
+    peer.onicecandidate = handleICECandidateEvent;
+    peer.ontrack = handleTrackEvent;
+    return peer;
+  }, []);
+
+  const handleNegotiationNeededEvent = useCallback((userID) => {
+    if (!peerRef.current) return;
+    peerRef.current.createOffer()
+      .then((offer) => peerRef.current.setLocalDescription(offer))
+      .then(() => {
+        socketRef.current.emit("offer", {
+          target: userID,
+          caller: socketRef.current.id,
+          sdp: peerRef.current.localDescription,
+        });
+      })
+      .catch((e) => console.error(e));
+  }, []);
+
+  const handleRecieveCall = useCallback((incoming) => {
+    peerRef.current = createPeer();
+    peerRef.current.ondatachannel = (event) => {
+      sendChannel.current = event.channel;
+      sendChannel.current.onmessage = handleReceiveMessage;
     };
+    const desc = new RTCSessionDescription(incoming.sdp);
+    peerRef.current.setRemoteDescription(desc)
+      .then(() => {
+        userStream.current.getTracks().forEach((track) =>
+          peerRef.current.addTrack(track, userStream.current)
+        );
+      })
+      .then(() => peerRef.current.createAnswer())
+      .then((answer) => peerRef.current.setLocalDescription(answer))
+      .then(() => {
+        socketRef.current.emit("answer", {
+          target: incoming.caller,
+          caller: socketRef.current.id,
+          sdp: peerRef.current.localDescription,
+        });
+      })
+      .catch((e) => console.error(e));
+  }, [createPeer]);
 
-    // receiving the remote stream of peer and attaching the video of partner
-    const handleTrackEvent = (e) => {
-        partnerVideo.current.srcObject = e.streams[0];
-    };
-
-    // ================== CREATING THE PEER TO PEER CONNECTION ==========
-
-    // making the call
-    // when the actual offer is created, it is then sent to the other user
-    const handleNegotiationNeededEvent = (userID) => {
-        peerRef.current
-            .createOffer()
-            .then((offer) =>
-                // setting the local description from the users offer
-                peerRef.current.setLocalDescription(offer)
-            )
-            .then(() => {
-                // the person we are trying to make the offer to
-                const payload = {
-                    target: userID,
-                    caller: socketRef.current.id,
-                    sdp: peerRef.current.localDescription,
-                };
-                socketRef.current.emit('offer', payload);
-            })
-            .catch((e) => console.log(e));
-    };
-
-    // user id of the person we are trying to call ( user b )
-    // user b recieving the offer
-    const createPeer = useCallback(
-        (userID) => {
-            const peer = new RTCPeerConnection({
-                // connecting the two servers
-                iceServers: iceServer,
-            });
-
-            peer.onicecandidate = handleICECandidateEvent;
-            peer.ontrack = handleTrackEvent;
-            peer.onnegotiationneeded = () => handleNegotiationNeededEvent(userID);
-
-            return peer;
-        },
-        [iceServer]
+  const callUser = useCallback((userID) => {
+    peerRef.current = createPeer(userID);
+    userStream.current.getTracks().forEach((track) =>
+      senders.current.push(peerRef.current.addTrack(track, userStream.current))
     );
+    sendChannel.current = peerRef.current.createDataChannel("sendChannel");
+    sendChannel.current.onmessage = handleReceiveMessage;
+    handleNegotiationNeededEvent(userID);
+  }, [createPeer, handleNegotiationNeededEvent]);
 
-    // Handle received message
-    const handleReceiveMessage = (event) => {
-        const data = JSON.parse(event.data);
-        const receivedMessage = {
-            yours: false,
-            data: {
-                name: data.name,
-                image: data.image,
-                message: data.message,
-            },
-        };
+  const handleAnswer = useCallback((message) => {
+    if (!peerRef.current) return;
+    const desc = new RTCSessionDescription(message.sdp);
+    peerRef.current.setRemoteDescription(desc).catch((e) => console.error(e));
+  }, []);
 
-        setMessages((msg) => [...msg, receivedMessage]);
-    };
+  const handleNewICECandidateMsg = useCallback((incoming) => {
+    if (!peerRef.current) return;
+    const candidate = new RTCIceCandidate(incoming);
+    peerRef.current.addIceCandidate(candidate).catch((e) => console.error(e));
+  }, []);
 
-    // recieving the call
-    const handleRecieveCall = useCallback(
-        (incoming) => {
-            peerRef.current = createPeer();
+  const handleReceiveMessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      setMessages((msg) => [...msg, { yours: false, data }]);
+    } catch (e) {
+      console.error("Chat parse error:", e);
+    }
+  };
 
-            // chatting
-            peerRef.current.ondatachannel = (event) => {
-                sendChannel.current = event.channel;
-                sendChannel.current.onmessage = handleReceiveMessage;
-            };
+  const startCamera = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      userVideo.current.srcObject = stream;
+      userStream.current = stream;
 
-            // remote description
-            const desc = new RTCSessionDescription(incoming.sdp);
+      socketRef.current.emit("join room", { roomID, userName, userImg });
 
-            // setting remote description and attaching the stream
-            peerRef.current
-                .setRemoteDescription(desc)
-                .then(() => {
-                    userStream.current
-                        .getTracks()
-                        .forEach((track) => peerRef.current.addTrack(track, userStream.current));
-                })
-                .then(() =>
-                    // creating the answer
-                    peerRef.current.createAnswer()
-                )
-                .then((answer) =>
-                    // setting local description
-                    peerRef.current.setLocalDescription(answer)
-                )
-                .then(() => {
-                    // sending data back to the caller
-                    const payload = {
-                        target: incoming.caller,
-                        caller: socketRef.current.id,
-                        sdp: peerRef.current.localDescription,
-                    };
-                    socketRef.current.emit('answer', payload);
-                });
-        },
-        [createPeer]
-    );
+      socketRef.current.on("old user", ({ userId, userName: name, userImg: img }) => {
+        usersID.current = userId;
+        callUser(userId);
+      });
 
-    // calling user a ( who created the room )
-    const callUser = useCallback(
-        (userID) => {
-            // taking the peer ID
-            peerRef.current = createPeer(userID);
+      socketRef.current.on("new user", ({ newUserId }) => {
+        usersID.current = newUserId;
+      });
 
-            // streaming the user a stream
-            // giving access to our peer of our individual stream
-            // storing all the objects sent by the user into the senders array
-            userStream.current
-                .getTracks()
-                .forEach((track) =>
-                    senders.current.push(peerRef.current.addTrack(track, userStream.current))
-                );
+      socketRef.current.on("offer", handleRecieveCall);
+      socketRef.current.on("answer", handleAnswer);
+      socketRef.current.on("ice-candidate", handleNewICECandidateMsg);
 
-            // creating a data channel for chatting
-            sendChannel.current = peerRef.current.createDataChannel('sendChannel');
-            sendChannel.current.onmessage = handleReceiveMessage;
-        },
-        [createPeer]
-    );
-
-    // function to handle the answer which the user a (who created the call) is receiving
-    const handleAnswer = useCallback((message) => {
-        const desc = new RTCSessionDescription(message.sdp);
-        peerRef.current.setRemoteDescription(desc).catch((e) => console.log(e));
-    }, []);
-
-    // swapping candidates until they reach on an agreement
-    const handleNewICECandidateMsg = (incoming) => {
-        const candidate = new RTCIceCandidate(incoming);
-        peerRef.current.addIceCandidate(candidate).catch((e) => console.log(e));
-    };
-
-    // ==========Function to handle getUserMedia access============
-    // Options for getUserMedia
-    const [constraints, setConstraints] = useState({ audio: true, video: true });
-    const startCamera = useCallback(async () => {
+      socketRef.current.on("user left", (id) => {
         try {
-            await navigator.mediaDevices
-                .getUserMedia(constraints)
-                .then((stream) => {
-                    // streaming the audio and video and storing the local stream
-                    userVideo.current.srcObject = stream;
-                    userStream.current = stream;
-
-                    document.getElementById('btn-chat').classList = 'fab fa-rocketchat fw-semibold';
-
-                    socketRef.current.emit('join room', {
-                        roomID,
-                        userName,
-                        userImg,
-                    });
-                    // user a is joining
-                    socketRef.current.on('old user', ({ userId, userName: name, userImg: img }) => {
-                        callUser(userId);
-                        usersID.current = userId;
-                        yourNameRef.current = name;
-                        yourImageRef.current = img;
-                    });
-
-                    // user b is joining
-                    socketRef.current.on(
-                        'new user',
-                        ({ newUserId, userName: name, userImg: img }) => {
-                            usersID.current = newUserId;
-                            userNameRef.current = name;
-                            userImageRef.current = img;
-                        }
-                    );
-
-                    // calling the function when made an offer
-                    socketRef.current.on('offer', handleRecieveCall);
-
-                    // sending the answer back to socket
-                    socketRef.current.on('answer', handleAnswer);
-
-                    // joining the user after receiving offer
-                    socketRef.current.on('ice-candidate', handleNewICECandidateMsg);
-                })
-                .catch((error) => {
-                    if (error.name === 'NotAllowedError') {
-                        toast.error('Camera and microphone access denied by the user.');
-                    } else if (error.name === 'NotFoundError') {
-                        toast.error('No camera or microphone found on this device.');
-                    } else {
-                        toast.error('Failed accessing camera/microphone.');
-                    }
-                    console.error(error);
-                });
-        } catch (error) {
-            toast.error('MediaDevices is not supported.');
-            console.log(error);
+          if (partnerVideo.current) partnerVideo.current.srcObject = null;
+          if (peerRef.current) {
+            peerRef.current.close();
+            peerRef.current = null;
+          }
+          setMessages([]);
+          toast.info("Your call partner left");
+        } catch (err) {
+          console.error("Error handling peer leave:", err);
         }
-    }, [callUser, handleRecieveCall, handleAnswer, constraints, userName, roomID, userImg]);
+      });
+    } catch (error) {
+      toast.error("Camera/microphone access denied or unavailable.");
+      console.error(error);
+    }
+  }, [roomID, userName, userImg, callUser, handleRecieveCall, handleAnswer, handleNewICECandidateMsg]);
 
-    // let isCamera = true;
-    // let iconCamera = 'fas fa-camera-retro fw-semibold';
-    // // Function to flip the camera
-    // const flipCamera = () => {
-    //     document.getElementById('btn-cam').classList = iconCamera;
-    //     if (isCamera) {
-    //         iconCamera = 'fal fa-camera fw-semibold';
-    //     } else {
-    //         iconCamera = 'fas fa-camera-retro fw-semibold';
-    //     }
-    //     isCamera = !isCamera;
-    //     const currentStream = userVideo.current.srcObject;
-    //     const tracks = currentStream.getTracks();
-    //     // Stop the current camera stream
-    //     tracks.forEach((track) => track.stop());
-    //     // Toggle the constraint to switch between front and rear camera
-    //     constraints.video = !constraints.video;
-
-    //     // Restart the camera with the new constraint
-    //     startCamera();
-    // };
-
-    // grabbing the room id from the url and then sending it to the socket io server
-    useEffect(() => {
-        if (user) {
-            socketRef.current = io.connect('https://meetroom.onrender.com');
-            // socketRef.current = io.connect('http://localhost:8000');
-            startCamera();
+  // CRITICAL FIX: do NOT put stopRecording in deps — it changes when isRecording changes,
+  // which would destroy the socket/peer every time recording starts/stops.
+  useEffect(() => {
+    if (user) {
+      socketRef.current = io.connect(SOCKET_URL);
+      startCamera();
+    }
+    return () => {
+      // Inline cleanup — never references a callback that depends on React state
+      if (isRecordingRef.current) {
+        isRecordingRef.current = false;
+        cancelAnimationFrame(animationRef.current);
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+          try { mediaRecorderRef.current.stop(); } catch (_) {}
         }
-    }, [user, startCamera]);
+      }
+      if (socketRef.current) socketRef.current.disconnect();
+      if (peerRef.current) peerRef.current.close();
+      if (userStream.current) userStream.current.getTracks().forEach((t) => t.stop());
+    };
+  }, [user, startCamera]);
 
-	// Toggle Video
-	let isVideo = true;
-	let iconVideo = "fal fa-video-slash font-bold";
-	const toggleVideo = () => {
-		document.getElementById("btn-v").classList = iconVideo;
-		if (isVideo) {
-			iconVideo = "fal fa-video font-bold";
-		} else {
-			iconVideo = "fal fa-video-slash font-bold";
-		}
-		isVideo = !isVideo;
-		userStream.current.getVideoTracks()[0].enabled = isVideo;
-	};
+  // ================== CONTROLS =================
+  const toggleVideo = () => {
+    setIsVideoEnabled((prev) => {
+      const next = !prev;
+      userStream.current?.getVideoTracks().forEach((t) => (t.enabled = next));
+      return next;
+    });
+  };
 
-	// Toggle Audio
-	let isAudio = true;
-	let iconAudio = "fas fa-microphone-slash font-bold";
-	const toggleAudio = () => {
-		document.getElementById("btn-a").classList = iconAudio;
-		if (isAudio) {
-			iconAudio = "fal fa-microphone font-bold";
-		} else {
-			iconAudio = "fas fa-microphone-slash font-bold";
-		}
-		isAudio = !isAudio;
-		userStream.current.getAudioTracks()[0].enabled = isAudio;
-	};
+  const toggleAudio = () => {
+    setIsAudioEnabled((prev) => {
+      const next = !prev;
+      userStream.current?.getAudioTracks().forEach((t) => (t.enabled = next));
+      return next;
+    });
+  };
 
-	// Hanging up the call
-	const hangUp = () => {
-		userStream.current.getVideoTracks()[0].enabled = false;
-		window.location.replace("/conference");
-	};
+  const hangUp = () => {
+    if (isRecordingRef.current) {
+      isRecordingRef.current = false;
+      cancelAnimationFrame(animationRef.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        try { mediaRecorderRef.current.stop(); } catch (_) {}
+      }
+    }
+    if (sendChannel.current) sendChannel.current.close();
+    if (peerRef.current) peerRef.current.close();
+    if (userStream.current) userStream.current.getTracks().forEach((t) => t.stop());
+    if (socketRef.current) socketRef.current.disconnect();
+    navigate("/conference");
+  };
 
-	// Sharing the Screen
-	const shareScreen = async () => {
-		try {
-			const stream = await navigator.mediaDevices.getDisplayMedia({
-				cursor: true,
-			});
-			const screenTrack = stream.getTracks()[0];
-			// Replace video track with screen track
-			const sender = senders.current.find(
-				(sender) => sender.track.kind === "video",
-			);
-			if (sender) {
-				await sender.replaceTrack(screenTrack);
-			}
-			document.getElementById("btn-share").classList = "far fa-ban font-bold";
-			// When screenshare is turned off, replace displayed screen with user's video track
-			screenTrack.onended = async () => {
-				const userVideoTrack = userStream.current.getVideoTracks()[0];
-				if (sender) {
-					await sender.replaceTrack(userVideoTrack);
-				}
-				document.getElementById("btn-share").classList =
-					"fal fa-share-square font-bold";
-			};
-		} catch (error) {
-			if (error.name === "PermissionDeniedError") {
-				toast.error("User denied screen sharing permission");
-			} else {
-				toast.error(error);
-			}
-		}
-	};
+  const shareScreen = async () => {
+    if (isScreenSharing.current) return;
+    if (senders.current.length === 0) {
+      toast.info("Wait for someone to join before sharing screen");
+      return;
+    }
+    try {
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      const screenTrack = screenStream.getVideoTracks()[0];
+      const videoSender = senders.current.find((s) => s.track?.kind === "video");
+      if (!videoSender) {
+        toast.error("No video track found to replace");
+        return;
+      }
 
-	// const stopShare = async () => {
-	//      try {
-	//         senders.current.find(sender => sender.track.kind === "video").replaceTrack(userStream.current.getTracks()[1]);
-	//      	document.getElementById('btn-stop').classList = 'far fa-ban font-bold';
-	//        	document.getElementById('btn-share').classList = 'fal fa-share-square font-bold';
-	//        	document.getElementById('btn-share').classList = 'far fa-ban font-bold';
-	//     } catch (error) {
-	//         console.log('Error stopping screen sharing:', error);
-	//     }
-	// };
+      const cameraTrack = userStream.current?.getVideoTracks()[0];
+      isScreenSharing.current = true;
 
-	// responsive chat option
-	const resPonsiveChat = async () => {
-		setShowChat(!showChat);
-		try {
-			await senders?.current
-				?.find((sender) => sender.track.kind === "video")
-				.replaceTrack(userStream?.current?.getTracks()[1]);
-			document.getElementById("btn-chat").classList =
-				"fab fa-rocketchat font-bold";
-			document.getElementById("btn-share").classList =
-				"fal fa-share-square font-bold";
-			document.getElementById("btn-share").classList =
-				"fal fa-share-square font-bold";
-		} catch (error) {
-			console.log("Error stopping screen sharing:", error);
-		}
-	};
+      await videoSender.replaceTrack(screenTrack);
+      toast.success("You are now presenting");
 
-	// Copy the Url
-	const [copySuccess, setCopySuccess] = useState("");
-	const getUrl = () => {
-		var inputc = document.body.appendChild(document.createElement("input"));
-		inputc.value = window.location.href;
-		inputc.focus();
-		inputc.select();
-		document.execCommand("copy");
-		inputc.parentNode.removeChild(inputc);
-		setCopySuccess("Copied!");
-	};
+      screenTrack.onended = () => {
+        if (!isScreenSharing.current) return;
+        isScreenSharing.current = false;
+        if (cameraTrack && videoSender) {
+          videoSender.replaceTrack(cameraTrack).catch(() => {});
+        }
+        setIsVideoEnabled(true);
+        toast.info("Screen sharing stopped");
+      };
+    } catch (error) {
+      toast.error("Screen sharing failed or was cancelled.");
+    }
+  };
 
-	// Chat controling peer to peer
-	// handling text change when recieved
-	const toggleEmojiPicker = () => {
-		setShowEmojiPicker(!showEmojiPicker);
-	};
-	const handleChange = (e) => {
-		setText(e.target.value);
-	};
-	const handleEmojiSelect = (emoji) => {
-		setText(text + emoji.native);
-		setShowEmojiPicker(false);
-	};
+  const getUrl = () => {
+    const url = window.location.href;
+    navigator.clipboard?.writeText(url).then(() => {
+      setCopySuccess("Copied!");
+      setTimeout(() => setCopySuccess(""), 2000);
+    });
+  };
 
-	// sending message to the peer
-	const sendMessage = (e) => {
-		e.preventDefault();
-		if (!text) {
-			return;
-		}
-		const messageData = {
-			name: userName,
-			image: userImg,
-			message: text,
-		};
-		if (sendChannel?.current && sendChannel?.current?.send) {
-			sendChannel.current.send(JSON.stringify(messageData));
-		} else {
-			toast.info("Please wait for your partner");
-			return;
-		}
-		// sendChannel.current.send(JSON.stringify(messageData));
-		setMessages((messages) => [
-			...messages,
-			{
-				yours: true,
-				data: {
-					name: messageData.name,
-					image: messageData.image,
-					message: messageData.message,
-				},
-			},
-		]);
-		setText("");
-	};
+  // ================== RECORDING =================
+  const stopRecording = useCallback(() => {
+    if (!isRecordingRef.current) return;
+    isRecordingRef.current = false;
+    setIsRecording(false);
+    cancelAnimationFrame(animationRef.current);
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      try { mediaRecorderRef.current.stop(); } catch (_) {}
+    }
+  }, []);
 
-	// differentiating messages from user a and user b
-	const renderMessage = (message, index) => {
-		if (message.yours) {
-			return (
-				<div
-					className="flex justify-start items-center py-1 mb-1 flex-row-reverse text-right pr-1 gap-y-1"
-					key={index}
-				>
-					<div className="grid">
-						<div className="flex justify-end items-center mb-1">
-							<p className="text-sm text-white p-1 rounded font-semibold">
-								{message?.data?.name || "You"}
-s							</p>
-							<img
-								src={message?.data?.image}
-								alt={message?.data?.name}
-								className="w-8 h-8 p-1 border border-slate-600 ml-1 rounded-full"
-							/>
-						</div>
-						<div>
-							<p className="text-md bg-slate-200 p-1 rounded">
-								{message?.data?.message}
-							</p>
-						</div>
-					</div>
-				</div>
-			);
-		}
+  const startRecording = useCallback(() => {
+    if (isRecordingRef.current) return;
+    if (!userStream.current) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = 1280;
+    canvas.height = 720;
+    const ctx = canvas.getContext("2d");
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const dest = audioCtx.createMediaStreamDestination();
 
-		return (
-			<div
-				key={index}
-				className="flex items-center py-1 mb-1 justify-start gap-y-1"
-			>
-				<div className="grid">
-					<div className="flex items-center mb-1">
-						<img
-							src={message?.data?.image}
-							alt={message?.data?.name}
-							className="w-8 h-8 p-1 border border-slate-600 ml-1 rounded-full"
-						/>
-						<p className="text-sm text-white p-1 rounded font-semibold">
-							{message?.data?.name || "Ghost"}
-						</p>
-					</div>
-					<div>
-						<p className="text-md bg-slate-200 p-1 rounded">
-							{message?.data?.message}
-						</p>
-					</div>
-				</div>
-			</div>
-		);
-	};
+    try {
+      const localSrc = audioCtx.createMediaStreamSource(userStream.current);
+      localSrc.connect(dest);
+    } catch (_) {}
 
-	return (
-		<div className="flex justify-center gap-1 flex-col lg:flex-row mt-2">
-			<div
-				className={
-					showChat
-						? `md:w-12/12  lg:w-8/12 relative`
-						: `md:w-12/12 lg:w-8/12 relative`
-				}
-			>
-				<SingleVideo
-					messages={messages}
-					containerVideo={containerVideo}
-					socketRef={socketRef}
-					userVideo={userVideo}
-					partnerVideo={partnerVideo}
-					getUrl={getUrl}
-					copySuccess={copySuccess}
-					hangUp={hangUp}
-					toggleAudio={toggleAudio}
-					toggleVideo={toggleVideo}
-					shareScreen={shareScreen}
-					// stopShare={stopShare}
-					resPonsiveChat={resPonsiveChat}
-				/>
-			</div>
-			{/* ========Right Sidebar ========*/}
-			{showChat && (
-				<div className="md:w-12/12 lg:w-4/12">
-					{/* ========Single Chat Options ========*/}
+    if (partnerVideo.current?.srcObject) {
+      try {
+        const remoteSrc = audioCtx.createMediaStreamSource(partnerVideo.current.srcObject);
+        remoteSrc.connect(dest);
+      } catch (_) {}
+    }
 
-					<div className="pl-0 lg:pl-2">
-						<h2 className="text-md lg:text-xl text-center uppercase font-semibold p-2 border border-green-700 rounded-md text-gray-400">
-							Live Chat
-						</h2>
-						<SignleChat
-							text={text}
-							handleChange={handleChange}
-							messages={messages}
-							renderMessage={renderMessage}
-							sendMessage={sendMessage}
-							showEmojiPicker={showEmojiPicker}
-							toggleEmojiPicker={toggleEmojiPicker}
-							handleEmojiSelect={handleEmojiSelect}
-						/>
-					</div>
-				</div>
-			)}
-		</div>
-	);
+    const canvasStream = canvas.captureStream(30);
+    dest.stream.getAudioTracks().forEach((t) => canvasStream.addTrack(t));
+
+    const recorder = new MediaRecorder(canvasStream, { mimeType: "video/webm; codecs=vp9" });
+    recordedChunksRef.current = [];
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
+    recorder.onstop = () => {
+      const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `MeetRoom-${roomID}-${Date.now()}.webm`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Recording saved!");
+    };
+
+    const draw = () => {
+      if (!isRecordingRef.current) return;
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (partnerVideo.current?.videoWidth) {
+        ctx.drawImage(partnerVideo.current, 0, 0, canvas.width, canvas.height);
+      }
+      if (userVideo.current?.videoWidth) {
+        ctx.drawImage(userVideo.current, canvas.width - 280, canvas.height - 210, 280, 210);
+      }
+      ctx.fillStyle = "rgba(220, 38, 38, 0.8)";
+      ctx.beginPath();
+      ctx.arc(40, 40, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 16px sans-serif";
+      ctx.fillText("REC", 60, 46);
+      animationRef.current = requestAnimationFrame(draw);
+    };
+
+    recorder.start();
+    mediaRecorderRef.current = recorder;
+    isRecordingRef.current = true;
+    setIsRecording(true);
+    draw();
+    toast.info("Recording started");
+  }, [roomID]);
+
+  // ================== CHAT =================
+  const sendMessage = (e) => {
+    e.preventDefault();
+    if (!text.trim()) return;
+    const payload = { name: userName, image: userImg, message: text };
+    if (sendChannel.current?.readyState === "open") {
+      sendChannel.current.send(JSON.stringify(payload));
+      setMessages((m) => [...m, { yours: true, data: payload }]);
+      setText("");
+    } else {
+      toast.info("Wait for partner to connect");
+    }
+  };
+
+  const renderMessage = (message, index) => {
+    const isMine = message.yours;
+    return (
+      <div key={index} className={`flex mb-3 ${isMine ? "flex-row-reverse" : ""}`}>
+        <img src={message.data.image} alt="" className="w-8 h-8 rounded-full border border-slate-600 mx-2 flex-shrink-0" />
+        <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm ${isMine ? "bg-emerald-600 text-white rounded-br-none" : "bg-slate-700 text-slate-100 rounded-bl-none"}`}>
+          <p className="text-xs opacity-80 mb-0.5">{message.data.name}</p>
+          <p>{message.data.message}</p>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex h-full w-full relative bg-slate-950 overflow-hidden">
+      {/* Video Area */}
+      <div className={`flex-1 relative flex items-center justify-center p-4 ${showChat ? "lg:pr-[380px]" : ""}`}>
+        <video ref={partnerVideo} autoPlay playsInline className="w-full h-full max-h-[90vh] rounded-2xl bg-slate-900 object-cover shadow-2xl" />
+
+        {/* Local PIP */}
+        <video ref={userVideo} muted autoPlay playsInline className="video-pip" />
+
+        {/* Empty state */}
+        <div className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity ${partnerVideo.current?.srcObject ? 'opacity-0' : 'opacity-100'}`}>
+          <div className="text-center">
+            <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FiVideo className="text-3xl text-slate-500" />
+            </div>
+            <p className="text-slate-400">Waiting for someone to join...</p>
+          </div>
+        </div>
+
+        {/* Top Bar Info */}
+        <div className="absolute top-4 left-4 flex items-center gap-3 bg-slate-900/80 backdrop-blur px-4 py-2 rounded-full border border-slate-700 z-20">
+          <span className="text-xs text-slate-300 font-medium">Room: {roomID?.slice(0, 8)}...</span>
+          {copySuccess ? (
+            <span className="text-xs text-emerald-400 font-semibold">{copySuccess}</span>
+          ) : (
+            <button onClick={getUrl} className="text-slate-300 hover:text-white"><FiCopy size={14} /></button>
+          )}
+        </div>
+
+        {/* Bottom Controls */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-full bg-slate-800/90 backdrop-blur-md border border-slate-700 shadow-2xl z-999 pointer-events-auto">
+          <button type="button" onClick={toggleAudio} className={isAudioEnabled ? "btn-control" : "btn-control-active"} title="Mic">
+            {isAudioEnabled ? <FiMic /> : <FiMicOff />}
+          </button>
+          <button type="button" onClick={toggleVideo} className={isVideoEnabled ? "btn-control" : "btn-control-active"} title="Camera">
+            {isVideoEnabled ? <FiVideo /> : <FiVideoOff />}
+          </button>
+          <button type="button" onClick={shareScreen} className="btn-control" title="Share Screen">
+            <FiMonitor />
+          </button>
+          <button type="button" onClick={() => setShowChat((p) => !p)} className={showChat ? "btn-control-active" : "btn-control"} title="Chat">
+            {showChat ? <FiMessageCircle /> : <FiMessageSquare />}
+          </button>
+          <button
+            type="button"
+            onClick={isRecording ? stopRecording : startRecording}
+            className={isRecording ? "btn-control-danger animate-pulse" : "btn-control"}
+            title={isRecording ? "Stop Recording" : "Record"}
+          >
+            {isRecording ? <FiSquare /> : <FiCircle />}
+          </button>
+          <button type="button" onClick={hangUp} className="btn-control-danger" title="End Call">
+            <FiPhoneOff />
+          </button>
+        </div>
+      </div>
+
+      {/* Chat Sidebar */}
+      {showChat && (
+        <div className="absolute inset-y-0 right-0 w-full lg:w-[380px] bg-slate-900 border-l border-slate-700 flex flex-col shadow-2xl z-40">
+          <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+            <h3 className="font-semibold text-slate-100">In-call Messages</h3>
+            <button
+              type="button"
+              onClick={() => setShowChat(false)}
+              className="flex items-center gap-1 text-slate-400 hover:text-white px-2 py-1 rounded-lg hover:bg-slate-800 transition-colors text-sm"
+            >
+              <FiX size={16} /> <span className="lg:hidden">Close</span>
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            {messages.length === 0 && <p className="text-center text-slate-500 text-sm mt-10">No messages yet</p>}
+            {messages.map(renderMessage)}
+          </div>
+          <SignleChat
+            text={text}
+            handleChange={(e) => setText(e.target.value)}
+            sendMessage={sendMessage}
+            showEmojiPicker={showEmojiPicker}
+            toggleEmojiPicker={() => setShowEmojiPicker((p) => !p)}
+            handleEmojiSelect={(emoji) => { setText((t) => t + emoji.native); setShowEmojiPicker(false); }}
+          />
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default SingleRoom;

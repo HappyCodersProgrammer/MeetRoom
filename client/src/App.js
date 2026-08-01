@@ -5,9 +5,6 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import ConferenceRoom from "./ConferenceRoom/ConferenceRoom";
 import HomeConference from "./ConferenceRoom/HomeConference/HomeConference";
-import NotificationConference from "./ConferenceRoom/NotificationConference/NotificationConference";
-import ScheduleConference from "./ConferenceRoom/ScheduleConference/ScheduleConference";
-import SettingConference from "./ConferenceRoom/SettingConference/SettingConference";
 import UserConference from "./ConferenceRoom/UserConference/UserConference";
 import GroupRoom from "./ConferenceRoom/VideoConference/GroupRoom";
 import LiveBroadCast from "./ConferenceRoom/VideoConference/LiveBroadCast";
@@ -44,7 +41,6 @@ function App() {
 				<Route path="/support" element={<SupportPage />}></Route>
 				<Route path="/about" element={<About />}></Route>
 				<Route path="/contact" element={<Contact />}></Route>
-				<Route path="/liveChat" element={<LiveChat />}></Route>
 				<Route path="/schedule" element={<MeetingSchedule />}></Route>
 				<Route
 					path="/dashboard"
@@ -54,10 +50,10 @@ function App() {
 						</RequireAuth>
 					}
 				>
-					<Route path="dashboard/users" element={<AllUser />}></Route>
-					<Route path="dashboard/addMembers" element={<AddMember />}></Route>
+					<Route path="/dashboard/users" element={<AllUser />}></Route>
+					<Route path="/dashboard/addMembers" element={<AddMember />}></Route>
 					<Route
-						path="dashboard/manageMembers"
+						path="/dashboard/manageMembers"
 						element={<ManageMember />}
 					></Route>
 					<Route index element={<AllUser />}></Route>
@@ -76,17 +72,11 @@ function App() {
 					{/* single room */}
 					<Route path="/conference/room/:roomID" element={<SingleRoom />} />
 					{/* group room */}
-					<Route path="roomGroup/:roomGroupID" element={<GroupRoom />} />
+					<Route path="/conference/room/group/:roomGroupID" element={<GroupRoom />} />
 					{/* live broadcast */}
-					<Route path="/conference/live" element={<LiveBroadCast />} />
+					<Route path="/conference/broadcast/:broadcastID" element={<LiveBroadCast />} />
 					{/* just chat live */}
-					<Route path="ChatLive" element={<LiveChat />} />
-					<Route path="schedule" element={<ScheduleConference />}></Route>
-					<Route
-						path="notifications"
-						element={<NotificationConference />}
-					></Route>
-					<Route path="settings" element={<SettingConference />}></Route>
+					<Route path="/conference/live-chat" element={<LiveChat />} />
 				</Route>
 				<Route path="*" element={<Error />}></Route>
 			</Routes>

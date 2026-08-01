@@ -2,50 +2,27 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { v1 as uuid } from "uuid";
 import useRoom from '../../hooks/useRoom';
-// import emailjs from 'emailjs-com';
+import { FiPlus } from 'react-icons/fi';
 
 const CreateSingleRoom = () => {
-    const {setId} = useRoom()
-    // creating a room id
-    // redirecting the user to the correct page
-    const navigate = useNavigate();
-    const create =()=> {
-        const id = uuid();
-       navigate(`/conference/room/${id}`, {replace: true});
-       setId(id)
-    }
+  const { setId } = useRoom();
+  const navigate = useNavigate();
 
-    // // creating a room id for scheduling a call
-    // const scheduleID =()=> {
-    //     const id = uuid();
-    //     var url = window.location.href;
-    //     var n = url.lastIndexOf('CreateRoom');
-    //     return url.substring(0, n - 1) + `/room/${id}`;
-    // }
-    
-    // //sending an email to the user
-    // const sendEmail = (e)=> {
-    //     e.preventDefault();
+  const create = () => {
+    const id = uuid();
+    navigate(`/conference/room/${id}`, { replace: true });
+    setId(id);
+  };
 
-    //     emailjs.sendForm('gmail', 'template_kgfrx5w', e.target, 'user_nAYJJym0KTqRP8NWdzKqS')
-    //         .then((result) => {
-    //             window.location.reload()
-    //         }, (error) => {
-    //             console.log(error.text);
-    //         });
-    // }
-   
-    return (
-			<div className=" items-center justify-center">
-				<button type="button" className="card-body" onClick={() => create()}>
-					<div className="flex justify-start gap-1">
-						<i className="fal fa-video font-bold text-3xl bg-clock bg-transparent border border-gray-300 p-2"></i>
-					</div>
-					<h2 className="text-xl font-semibold">One to One</h2>
-					<p className="text-sm">Start single call</p>
-				</button>
-			</div>
-		);
+  return (
+    <button
+      onClick={create}
+      className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-5 py-2.5 rounded-xl font-semibold transition-all duration-200 active:scale-95"
+    >
+      <FiPlus />
+      New Meeting
+    </button>
+  );
 };
 
 export default CreateSingleRoom;

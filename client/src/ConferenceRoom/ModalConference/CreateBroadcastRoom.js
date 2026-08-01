@@ -1,39 +1,25 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { v1 as uuid } from "uuid";
+import { FiRadio } from 'react-icons/fi';
 
 const CreateBroadcastRoom = () => {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
 
-    const createbroadCastRooom = () =>{
-        navigate('/conference/liveCast')
-    }
+  const create = () => {
+    const id = uuid();
+    navigate(`/conference/broadcast/${id}`, { replace: true });
+  };
 
-    return (
-        <div className=' items-center justify-center'>
-            <label htmlFor="my-modal-4" className="hover:cursor-pointer"><i className="far fa-signal-stream font-bold text-3xl bg-clock bg-transparent border border-gray-300 p-2"></i></label>
-
-            <input type="checkbox" id="my-modal-4" className="modal-toggle" />
-            
-            <div className="modal modal-bottom sm:modal-middle  ">
-                <div className="modal-box bg-chat h-auto  mx-auto  ">
-                    <h2 className="text-center text-3xl divide-y font-semibold">Crate Room Broadcast</h2>
-                    <div className='flex justify-center gap-3'>
-                        {/* Cancel Btn */}
-                        <div className="modal-action">
-                            <label htmlFor="my-modal-4" className="btn">Cancel</label>
-                            <div className="flex gap-2 items-center">
-                            {/* <button  type="button" className="schedule" onClick={() => setModalShow(true)}> Schedule Call </button> */}
-                            <Link to="/conference/schedule" className="btn">Schedule</Link>
-                            <button  type="button" className="btn" onClick={()=>createbroadCastRooom()}> BroadCost</button>
-
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-        </div>
-    );
+  return (
+    <button
+      onClick={create}
+      className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-5 py-2.5 rounded-xl font-semibold transition-all duration-200 active:scale-95"
+    >
+      <FiRadio />
+      Go Live
+    </button>
+  );
 };
 
 export default CreateBroadcastRoom;
