@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import io from "socket.io-client";
-import { FiMaximize, FiPhoneOff, FiRadio } from "react-icons/fi";
+import { FiMaximize, FiPhoneOff, FiRadio, FiVolume2, FiVolumeX } from "react-icons/fi"; // ← FIX #5
 import SOCKET_URL from "../../../../config/socket";
 import ICE_SERVERS from "../../../../config/iceServers";
 
@@ -12,6 +12,7 @@ const BroadcastViewer = () => {
 
     const [connected, setConnected] = useState(false);
     const [broadcasterLeft, setBroadcasterLeft] = useState(false);
+    const [isMuted, setIsMuted] = useState(true); // ← FIX #5
 
     const socketRef = useRef();
     const videoRef = useRef();
@@ -21,7 +22,6 @@ const BroadcastViewer = () => {
     useEffect(() => {
         socketRef.current = io.connect(SOCKET_URL);
 
-        // Join as viewer (server treats non-first joiners as viewers)
         socketRef.current.emit("join broadcast", {
             roomID,
             userName: "Viewer",
@@ -116,16 +116,14 @@ const BroadcastViewer = () => {
     return (
         <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
             <div className="relative w-full max-w-6xl aspect-video bg-slate-900 rounded-2xl overflow-hidden shadow-2xl">
-                {/* Video container with explicit bg so you know it's rendering */}
                 <video
                     ref={videoRef}
                     autoPlay
                     playsInline
-                    muted
+                    muted={isMuted} // ← FIX #5: controlled mute
                     className="w-full h-full object-cover block"
                 />
 
-                {/* Loading state */}
                 {!connected && !broadcasterLeft && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90">
                         <div className="w-16 h-16 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin mb-4" />
@@ -138,7 +136,6 @@ const BroadcastViewer = () => {
                     </div>
                 )}
 
-                {/* Broadcaster left */}
                 {broadcasterLeft && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90">
                         <FiRadio className="text-4xl text-slate-500 mb-4" />
@@ -155,7 +152,6 @@ const BroadcastViewer = () => {
                     </div>
                 )}
 
-                {/* Live overlay */}
                 {connected && (
                     <>
                         <div className="absolute top-4 left-4 flex items-center gap-3">
@@ -165,6 +161,14 @@ const BroadcastViewer = () => {
                         </div>
 
                         <div className="absolute top-4 right-4 flex items-center gap-2">
+                            {/* ← FIX #5: explicit unmute toggle */}
+                            <button
+                                onClick={() => setIsMuted((m) => !m)}
+                                className="bg-slate-900/80 backdrop-blur text-white p-2.5 rounded-full border border-slate-700 hover:bg-slate-800 transition-colors"
+                                title={isMuted ? "Unmute" : "Mute"}
+                            >
+                                {isMuted ? <FiVolumeX size={16} /> : <FiVolume2 size={16} />}
+                            </button>
                             <button
                                 onClick={toggleFullscreen}
                                 className="bg-slate-900/80 backdrop-blur text-white p-2.5 rounded-full border border-slate-700 hover:bg-slate-800 transition-colors"

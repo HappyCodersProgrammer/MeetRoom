@@ -16,13 +16,41 @@ import auth from "../../../../firebase.init";
 import SOCKET_URL from "../../../../config/socket";
 import ICE_SERVERS from "../../../../config/iceServers";
 
+// ← FIX: Race-condition-proof Video component
 function Video({ peer }) {
 	const ref = useRef();
+
 	useEffect(() => {
-		if (ref.current && peer) peer.on("stream", (stream) => { ref.current.srcObject = stream; });
-		return () => { if (peer) peer.destroy(); };
+		if (!peer) return;
+
+		const handleStream = (stream) => {
+			if (ref.current) ref.current.srcObject = stream;
+		};
+
+		// Attach listener FIRST
+		peer.on("stream", handleStream);
+
+		// If stream already arrived before we mounted, grab it now
+		// simple-peer stores remote streams in _remoteStreams (v9) or streams (v10+)
+		const remoteStreams = peer._remoteStreams || peer.streams || [];
+		if (remoteStreams.length > 0 && ref.current) {
+			ref.current.srcObject = remoteStreams[0];
+		}
+
+		return () => {
+			// ← FIX: NEVER destroy the peer here — parent manages lifecycle
+			peer.removeListener("stream", handleStream);
+		};
 	}, [peer]);
-	return <video className="w-full h-full object-cover rounded-xl bg-slate-900" playsInline autoPlay ref={ref} />;
+
+	return (
+		<video
+			ref={ref}
+			autoPlay
+			playsInline
+			className="w-full h-full object-cover rounded-xl bg-slate-900"
+		/>
+	);
 }
 
 const GroupRoom = () => {
@@ -65,8 +93,9 @@ const GroupRoom = () => {
 		return peer;
 	}, []);
 
-	const addPeer = useCallback((incomingSignal, callerID) => {
-		const peer = new Peer({ initiator: false, trickle: false, config: ICE_SERVERS });
+	// ← FIX: addPeer MUST receive the local stream so it sends video back
+	const addPeer = useCallback((incomingSignal, callerID, stream) => {
+		const peer = new Peer({ initiator: false, trickle: false, config: ICE_SERVERS, stream });
 		peer.on("signal", (signal) => {
 			socketRef.current.emit("returning signal", { signal, callerID, isHost: isHostRef.current });
 		});
@@ -95,7 +124,8 @@ const GroupRoom = () => {
 
 			socketRef.current.on("user joined", (payload) => {
 				if (!payload.signal) return;
-				const peer = addPeer(payload.signal, payload.callerID);
+				// ← FIX: pass local stream so existing users send video back to new joiner
+				const peer = addPeer(payload.signal, payload.callerID, stream);
 				setPeers((prev) => [...prev, { peerID: payload.callerID, peer, isHost: payload.isHost, name: payload.userName, image: payload.userImg }]);
 			});
 
@@ -125,7 +155,6 @@ const GroupRoom = () => {
 		}
 	}, [roomID, userName, userImg, addPeer, createPeer]);
 
-	// CRITICAL FIX: no stopRecording in deps
 	useEffect(() => {
 		if (user) {
 			socketRef.current = io.connect(SOCKET_URL);
@@ -191,10 +220,12 @@ const GroupRoom = () => {
 		try {
 			const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
 			const screenTrack = screenStream.getVideoTracks()[0];
+
 			peersRef.current.forEach((entry) => {
-				const sender = entry.peer.getSenders().find((s) => s.track?.kind === "video");
+				const sender = entry.peer._pc.getSenders().find((s) => s.track?.kind === "video");
 				if (sender) sender.replaceTrack(screenTrack);
 			});
+
 			isScreenSharing.current = true;
 			toast.success("You are now presenting");
 
@@ -202,7 +233,7 @@ const GroupRoom = () => {
 				const camTrack = userStream.current?.getVideoTracks()[0];
 				if (camTrack) {
 					peersRef.current.forEach((entry) => {
-						const sender = entry.peer.getSenders().find((s) => s.track?.kind === "video");
+						const sender = entry.peer._pc.getSenders().find((s) => s.track?.kind === "video");
 						if (sender) sender.replaceTrack(camTrack);
 					});
 				}
@@ -308,7 +339,6 @@ const GroupRoom = () => {
 	const totalVideos = 1 + peers.length;
 	const gridClass = totalVideos === 1 ? "grid-cols-1" : totalVideos === 2 ? "grid-cols-1 md:grid-cols-2" : totalVideos <= 4 ? "grid-cols-2" : "grid-cols-2 md:grid-cols-3";
 
-	// Toggle helpers — clicking the same button again closes it
 	const toggleChat = () => {
 		setShowChat((prev) => !prev);
 		setShowParticipants(false);
@@ -346,8 +376,7 @@ const GroupRoom = () => {
 						<button type="button" onClick={getUrl} className="text-slate-300 hover:text-white"><FiCopy size={14} /></button>}
 				</div>
 
-				{/* Bottom Controls*/}
-				<div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-full bg-slate-800/90 backdrop-blur-md border border-slate-700 shadow-2xl z-999 pointer-events-auto">
+				<div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-full bg-slate-800/90 backdrop-blur-md border border-slate-700 shadow-2xl z-50 pointer-events-auto">
 					<button type="button" onClick={toggleAudio} className={isAudioEnabled ? "btn-control" : "btn-control-active"} title="Mic">
 						{isAudioEnabled ? <FiMic /> : <FiMicOff />}
 					</button>
@@ -372,7 +401,6 @@ const GroupRoom = () => {
 				</div>
 			</div>
 
-			{/* Right Sidebar */}
 			{(showChat || showParticipants) && (
 				<div className="absolute inset-y-0 right-0 w-full lg:w-[380px] bg-slate-900 border-l border-slate-700 flex flex-col shadow-2xl z-40">
 					<div className="p-4 border-b border-slate-700 flex items-center justify-between">
@@ -407,7 +435,7 @@ const GroupRoom = () => {
 									<button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold">Send</button>
 								</form>
 								{showEmojiPicker && (
-									<div className="absolute bottom-16 right-4 z-999">
+									<div className="absolute bottom-16 right-4 z-50">
 										<Picker data={data} onEmojiSelect={(emoji) => { setText((t) => t + emoji.native); setShowEmojiPicker(false); }} theme="dark" />
 									</div>
 								)}
