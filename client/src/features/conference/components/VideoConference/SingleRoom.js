@@ -39,6 +39,7 @@ const SingleRoom = () => {
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
+  const [hasPartner, setHasPartner] = useState(false); // ← FIX #1
 
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
@@ -58,6 +59,7 @@ const SingleRoom = () => {
 
   const handleTrackEvent = (e) => {
     if (partnerVideo.current) partnerVideo.current.srcObject = e.streams[0];
+    setHasPartner(true); // ← FIX #1
   };
 
   const createPeer = useCallback((userID) => {
@@ -90,9 +92,10 @@ const SingleRoom = () => {
     const desc = new RTCSessionDescription(incoming.sdp);
     peerRef.current.setRemoteDescription(desc)
       .then(() => {
-        userStream.current.getTracks().forEach((track) =>
-          peerRef.current.addTrack(track, userStream.current)
-        );
+        userStream.current.getTracks().forEach((track) => {
+          const sender = peerRef.current.addTrack(track, userStream.current);
+          senders.current.push(sender); // ← FIX #2: callee must store senders too
+        });
       })
       .then(() => peerRef.current.createAnswer())
       .then((answer) => peerRef.current.setLocalDescription(answer))
@@ -165,7 +168,9 @@ const SingleRoom = () => {
             peerRef.current.close();
             peerRef.current = null;
           }
+          senders.current = []; // ← FIX #2: clear senders on disconnect
           setMessages([]);
+          setHasPartner(false); // ← FIX #1: reset overlay
           toast.info("Your call partner left");
         } catch (err) {
           console.error("Error handling peer leave:", err);
@@ -177,20 +182,17 @@ const SingleRoom = () => {
     }
   }, [roomID, userName, userImg, callUser, handleRecieveCall, handleAnswer, handleNewICECandidateMsg]);
 
-  // CRITICAL FIX: do NOT put stopRecording in deps — it changes when isRecording changes,
-  // which would destroy the socket/peer every time recording starts/stops.
   useEffect(() => {
     if (user) {
       socketRef.current = io.connect(SOCKET_URL);
       startCamera();
     }
     return () => {
-      // Inline cleanup — never references a callback that depends on React state
       if (isRecordingRef.current) {
         isRecordingRef.current = false;
         cancelAnimationFrame(animationRef.current);
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-          try { mediaRecorderRef.current.stop(); } catch (_) {}
+          try { mediaRecorderRef.current.stop(); } catch (_) { }
         }
       }
       if (socketRef.current) socketRef.current.disconnect();
@@ -221,7 +223,7 @@ const SingleRoom = () => {
       isRecordingRef.current = false;
       cancelAnimationFrame(animationRef.current);
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-        try { mediaRecorderRef.current.stop(); } catch (_) {}
+        try { mediaRecorderRef.current.stop(); } catch (_) { }
       }
     }
     if (sendChannel.current) sendChannel.current.close();
@@ -249,6 +251,9 @@ const SingleRoom = () => {
       const cameraTrack = userStream.current?.getVideoTracks()[0];
       isScreenSharing.current = true;
 
+      // ← Hide local PIP so your own camera isn't in the shared frame
+      if (userVideo.current) userVideo.current.style.display = "none";
+
       await videoSender.replaceTrack(screenTrack);
       toast.success("You are now presenting");
 
@@ -256,8 +261,10 @@ const SingleRoom = () => {
         if (!isScreenSharing.current) return;
         isScreenSharing.current = false;
         if (cameraTrack && videoSender) {
-          videoSender.replaceTrack(cameraTrack).catch(() => {});
+          videoSender.replaceTrack(cameraTrack).catch(() => { });
         }
+        // ← Restore local PIP when sharing stops
+        if (userVideo.current) userVideo.current.style.display = "block";
         setIsVideoEnabled(true);
         toast.info("Screen sharing stopped");
       };
@@ -265,7 +272,7 @@ const SingleRoom = () => {
       toast.error("Screen sharing failed or was cancelled.");
     }
   };
-
+  
   const getUrl = () => {
     const url = window.location.href;
     navigator.clipboard?.writeText(url).then(() => {
@@ -281,7 +288,7 @@ const SingleRoom = () => {
     setIsRecording(false);
     cancelAnimationFrame(animationRef.current);
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      try { mediaRecorderRef.current.stop(); } catch (_) {}
+      try { mediaRecorderRef.current.stop(); } catch (_) { }
     }
   }, []);
 
@@ -298,13 +305,13 @@ const SingleRoom = () => {
     try {
       const localSrc = audioCtx.createMediaStreamSource(userStream.current);
       localSrc.connect(dest);
-    } catch (_) {}
+    } catch (_) { }
 
     if (partnerVideo.current?.srcObject) {
       try {
         const remoteSrc = audioCtx.createMediaStreamSource(partnerVideo.current.srcObject);
         remoteSrc.connect(dest);
-      } catch (_) {}
+      } catch (_) { }
     }
 
     const canvasStream = canvas.captureStream(30);
@@ -388,15 +395,17 @@ const SingleRoom = () => {
         {/* Local PIP */}
         <video ref={userVideo} muted autoPlay playsInline className="video-pip" />
 
-        {/* Empty state */}
-        <div className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity ${partnerVideo.current?.srcObject ? 'opacity-0' : 'opacity-100'}`}>
-          <div className="text-center">
-            <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FiVideo className="text-3xl text-slate-500" />
+        {/* Empty state — FIX #1: use hasPartner state instead of ref */}
+        {!hasPartner && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity opacity-100">
+            <div className="text-center">
+              <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FiVideo className="text-3xl text-slate-500" />
+              </div>
+              <p className="text-slate-400">Waiting for someone to join...</p>
             </div>
-            <p className="text-slate-400">Waiting for someone to join...</p>
           </div>
-        </div>
+        )}
 
         {/* Top Bar Info */}
         <div className="absolute top-4 left-4 flex items-center gap-3 bg-slate-900/80 backdrop-blur px-4 py-2 rounded-full border border-slate-700 z-20">
@@ -409,7 +418,7 @@ const SingleRoom = () => {
         </div>
 
         {/* Bottom Controls */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-full bg-slate-800/90 backdrop-blur-md border border-slate-700 shadow-2xl z-999 pointer-events-auto">
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-full bg-slate-800/90 backdrop-blur-md border border-slate-700 shadow-2xl z-50 pointer-events-auto">
           <button type="button" onClick={toggleAudio} className={isAudioEnabled ? "btn-control" : "btn-control-active"} title="Mic">
             {isAudioEnabled ? <FiMic /> : <FiMicOff />}
           </button>
